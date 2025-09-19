@@ -2,49 +2,57 @@ Shader "Connor/Lab2Shader"
 {
     Properties
     {
-        _myColor("Sample Color", Color) = (1,1,1,1)
+        _MainTex ("Texture", 2D) = "white" {}
     }
-
     SubShader
     {
-        Tags { "RenderType"="Opaque" "RenderPipeline"="UniversalPipeline" }
+        Tags { "RenderType"="Opaque" }
         LOD 100
 
         Pass
         {
-            Name "Unlit"
-            Tags { "LightMode"="UniversalForward" }
-
-            HLSLPROGRAM
+            CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            // make fog work
+            #pragma multi_compile_fog
 
-            struct Attributes
+            #include "UnityCG.cginc"
+
+            struct appdata
             {
-                float4 positionOS : POSITION;
+                float4 vertex : POSITION;
+                float2 uv : TEXCOORD0;
             };
 
-            struct Varyings
+            struct v2f
             {
-                float4 positionHCS : SV_POSITION;
+                float2 uv : TEXCOORD0;
+                UNITY_FOG_COORDS(1)
+                float4 vertex : SV_POSITION;
             };
 
-            float4 _myColor;
+            sampler2D _MainTex;
+            float4 _MainTex_ST;
 
-            Varyings vert(Attributes IN)
+            v2f vert (appdata v)
             {
-                Varyings OUT;
-                OUT.positionHCS = TransformObjectToHClip(IN.positionOS.xyz);
-                return OUT;
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+                UNITY_TRANSFER_FOG(o,o.vertex);
+                return o;
             }
 
-            half4 frag(Varyings IN) : SV_Target
+            fixed4 frag (v2f i) : SV_Target
             {
-                return _myColor;
+                // sample the texture
+                fixed4 col = tex2D(_MainTex, i.uv);
+                // apply fog
+                UNITY_APPLY_FOG(i.fogCoord, col);
+                return col;
             }
-            ENDHLSL
+            ENDCG
         }
     }
-    FallBack Off
 }
